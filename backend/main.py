@@ -38,12 +38,20 @@ def health():
 
 
 setup("""CREATE TABLE IF NOT EXISTS pages(id INTEGER PRIMARY KEY,slug TEXT NOT NULL UNIQUE,title TEXT NOT NULL,body TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'Draft',version INTEGER NOT NULL DEFAULT 1);CREATE TABLE IF NOT EXISTS revisions(id INTEGER PRIMARY KEY,page_id INTEGER NOT NULL,version INTEGER NOT NULL,title TEXT NOT NULL,body TEXT NOT NULL,changed_at TEXT DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY(page_id) REFERENCES pages(id));""")
-from pydantic import Field
+from pydantic import Field,field_validator
+import re
 class Page(BaseModel):
-    slug:str=Field(min_length=2,max_length=90,pattern=r'^[a-z0-9]+(?:-[a-z0-9]+)*\Z')
+    slug:str=Field(min_length=2,max_length=90)
     title:str=Field(min_length=1,max_length=200)
     body:str=Field(max_length=100000)
     status:str='Draft'
+
+    @field_validator('slug')
+    @classmethod
+    def validate_slug(cls, value:str):
+        if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*',value):
+            raise ValueError('Slug must use lowercase letters, numbers and internal hyphens')
+        return value
 
 @app.get('/api/items')
 def items():
