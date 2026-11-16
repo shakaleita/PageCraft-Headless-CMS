@@ -45,6 +45,7 @@ class Page(BaseModel):
     title:str=Field(min_length=1,max_length=200)
     body:str=Field(max_length=100000)
     status:str='Draft'
+    expected_version:int|None=Field(default=None,ge=1)
 
     @field_validator('slug')
     @classmethod
@@ -75,8 +76,11 @@ def publish(id:int):
 @app.put('/api/items/{id}')
 def edit(id:int,d:Page):
     with db() as c:
+        c.execute('BEGIN IMMEDIATE')
         existing=c.execute('SELECT * FROM pages WHERE id=?',(id,)).fetchone()
         if not existing:raise HTTPException(404,'Page not found')
+        if d.expected_version is not None and d.expected_version!=existing['version']:
+            raise HTTPException(409,'Page changed since it was loaded; refresh before saving')
         version=existing['version']+1
         c.execute('UPDATE pages SET title=?,body=?,version=? WHERE id=?',(d.title,d.body,version,id))
         c.execute('INSERT INTO revisions(page_id,version,title,body) VALUES(?,?,?,?)',(id,version,d.title,d.body))
