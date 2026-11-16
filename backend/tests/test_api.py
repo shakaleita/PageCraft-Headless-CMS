@@ -62,3 +62,16 @@ def test_v06_audit_record_and_cross_site_guard():
     assert client.get('/api/auth/audit',params={'limit':201}).status_code==422
     blocked=client.post('/api/__audit_probe_404',headers={'sec-fetch-site':'cross-site'})
     assert blocked.status_code==403
+
+def test_edit_rejects_stale_document_version_without_writing_revision():
+    item=client.post('/api/items',json={'slug':'optimistic-edit','title':'First','body':'Original'}).json()
+    ident=item['id']
+    accepted=client.put(f'/api/items/{ident}',json={'slug':'optimistic-edit','title':'Second','body':'New',
+                                                    'expected_version':1})
+    assert accepted.status_code==200 and accepted.json()['version']==2
+    stale=client.put(f'/api/items/{ident}',json={'slug':'optimistic-edit','title':'Overwrite','body':'Old',
+                                                 'expected_version':1})
+    assert stale.status_code==409
+    data=next(x for x in client.get('/api/items').json() if x['id']==ident)
+    assert data['title']=='Second' and data['version']==2
+    assert len(client.get(f'/api/revisions/{ident}').json())==2
