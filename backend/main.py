@@ -40,7 +40,11 @@ def health():
 setup("""CREATE TABLE IF NOT EXISTS pages(id INTEGER PRIMARY KEY,slug TEXT NOT NULL UNIQUE,title TEXT NOT NULL,body TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'Draft',version INTEGER NOT NULL DEFAULT 1);CREATE TABLE IF NOT EXISTS revisions(id INTEGER PRIMARY KEY,page_id INTEGER NOT NULL,version INTEGER NOT NULL,title TEXT NOT NULL,body TEXT NOT NULL,changed_at TEXT DEFAULT CURRENT_TIMESTAMP,FOREIGN KEY(page_id) REFERENCES pages(id));""")
 from pydantic import Field
 class Page(BaseModel):
-    slug:str=Field(min_length=2,max_length=90,pattern=r'^[a-z0-9]+(?:-[a-z0-9]+)*
+    slug:str=Field(min_length=2,max_length=90,pattern=r'^[a-z0-9]+(?:-[a-z0-9]+)*\\Z')
+    title:str=Field(min_length=1,max_length=200)
+    body:str=Field(max_length=100000)
+    status:str='Draft'
+
 @app.get('/api/items')
 def items():
     with db() as c:return rows(c.execute('SELECT * FROM pages ORDER BY id DESC'))
